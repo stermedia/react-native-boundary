@@ -108,23 +108,52 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
 
 - (void)locationManager:(CLLocationManager *)manager didEnterRegion:(CLRegion *)region
 {
-    NSLog(@"didEnter : %@", region);
-    if (self.hasListeners) {
+    for (CLCircularRegion *enteredRegion in _locationManager.monitoredRegions.allObjects) {
+        if ([enteredRegion.identifier isEqualToString:region.identifier]) {
+
+            self.locationManager.activityType = CLActivityTypeFitness;
+            self.locationManager.distanceFilter = 5;
+            [self.locationManager startUpdatingLocation];
+
+            break;
+        }
+    }
+    
+    NSLog(@"start monitoring for region : %@", region);
+    /* if (self.hasListeners) {
       [self sendEventWithName:@"onEnter" body:region.identifier];
     } else {
       GeofenceEvent *event = [[GeofenceEvent alloc] initWithId:region.identifier forEvent:@"onEnter" ];
       [self.queuedEvents addObject:event];
-    }
+    } */
 }
 
 - (void)locationManager:(CLLocationManager *)manager didExitRegion:(CLRegion *)region
 {
+    [_locationManager stopUpdatingLocation];
     NSLog(@"didExit : %@", region);
     if (self.hasListeners) {
       [self sendEventWithName:@"onExit" body:region.identifier];
     } else {
       GeofenceEvent *event = [[GeofenceEvent alloc] initWithId:region.identifier forEvent:@"onExit" ];
       [self.queuedEvents addObject:event];
+    }
+}
+
+-(void)locationManager:(CLLocationManager *)manager didUpdateLocations:(NSArray<CLLocation *> *)locations {
+    CLLocation *firstLocation = [locations firstObject];
+    CGFloat const DESIRED_RADIUS = 20.0;
+
+    CLCircularRegion *circularRegion = [[CLCircularRegion alloc] initWithCenter:firstLocation.coordinate radius:DESIRED_RADIUS identifier:@"radiusCheck"];
+
+    for (CLCircularRegion *enteredRegion in _locationManager.monitoredRegions.allObjects) {
+        if ([circularRegion containsCoordinate:enteredRegion.center]) {
+            [_locationManager stopUpdatingLocation];
+            NSLog(@"You are within %@ of %@, @(DESIRED_RADIUS)", enteredRegion.identifier);
+            break;
+        } else if ([enteredRegion containsCoordinate:circularRegion.center]) {
+            NSLog(@"You are within the region, but not yet %@m from %@", @(DESIRED_RADIUS), enteredRegion.identifier);
+        }
     }
 }
 
