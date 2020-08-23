@@ -14,6 +14,8 @@
 @property (strong, nonatomic) CLLocationManager *locationManager;
 @property (strong, nonatomic) NSMutableSet *queuedEvents;
 @property (assign, nonatomic) bool hasListeners;
+@property (strong, nonatomic) NSMutableDictionary *enteredSubRegions;
+
 @end
 
 

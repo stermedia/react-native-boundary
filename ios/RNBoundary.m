@@ -34,8 +34,9 @@ RCT_EXPORT_MODULE()
     if (self) {
         self.locationManager = [[CLLocationManager alloc] init];
         self.locationManager.delegate = self;
-
         self.queuedEvents = [[NSMutableSet alloc] init];
+        self.enteredSubRegions = [NSMutableDictionary new];
+
     }
 
     return self;
@@ -53,7 +54,7 @@ RCT_EXPORT_METHOD(add:(NSDictionary*)boundary addWithResolver:(RCTPromiseResolve
         CLRegion *boundaryRegion = [[CLCircularRegion alloc]initWithCenter:center
                                                                     radius:[boundary[@"radius"] doubleValue]
                                                                 identifier:id];
-
+        [self.enteredSubRegions setValue:@NO forKey:id];
         [self.locationManager startMonitoringForRegion:boundaryRegion];
 
         resolve(id);
@@ -66,6 +67,7 @@ RCT_EXPORT_METHOD(remove:(NSString *)boundaryId removeWithResolver:(RCTPromiseRe
 {
     if ([self removeBoundary:boundaryId]) {
         resolve(boundaryId);
+        [self.enteredSubRegions removeObjectForKey:boundaryId];
     } else {
         reject(@"@no_boundary", @"No boundary with the provided id was found", [NSError errorWithDomain:@"boundary" code:200 userInfo:@{@"Error reason": @"Invalid boundary ID"}]);
     }
@@ -75,6 +77,7 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
 {
     @try {
         [self removeAllBoundaries];
+        [self.enteredSubRegions removeAllObjects];
     }
     @catch (NSError *ex) {
         reject(@"failed_remove_all", @"Failed to remove all boundaries", ex);
@@ -120,24 +123,22 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
     }
     
     NSLog(@"start monitoring for region : %@", region);
-    /* if (self.hasListeners) {
-      [self sendEventWithName:@"onEnter" body:region.identifier];
-    } else {
-      GeofenceEvent *event = [[GeofenceEvent alloc] initWithId:region.identifier forEvent:@"onEnter" ];
-      [self.queuedEvents addObject:event];
-    } */
+
 }
 
 - (void)locationManager:(CLLocationManager *)manager didExitRegion:(CLRegion *)region
 {
     [_locationManager stopUpdatingLocation];
-    NSLog(@"didExit : %@", region);
-    if (self.hasListeners) {
-      [self sendEventWithName:@"onExit" body:region.identifier];
-    } else {
-      GeofenceEvent *event = [[GeofenceEvent alloc] initWithId:region.identifier forEvent:@"onExit" ];
-      [self.queuedEvents addObject:event];
-    }
+    if([self.enteredSubRegions[region.identifier] isEqual:@YES]) {
+                [self.enteredSubRegions setValue:@NO forKey:region.identifier];
+                NSLog(@"didExit : %@", region.identifier);
+                if (self.hasListeners) {
+                  [self sendEventWithName:@"onExit" body:region.identifier];
+                } else {
+                  GeofenceEvent *event = [[GeofenceEvent alloc] initWithId:region.identifier forEvent:@"onExit" ];
+                  [self.queuedEvents addObject:event];
+                }
+            }
 }
 
 -(void)locationManager:(CLLocationManager *)manager didUpdateLocations:(NSArray<CLLocation *> *)locations {
@@ -148,14 +149,34 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
 
     for (CLCircularRegion *enteredRegion in _locationManager.monitoredRegions.allObjects) {
         if ([circularRegion containsCoordinate:enteredRegion.center]) {
-            [_locationManager stopUpdatingLocation];
             NSLog(@"You are within %@ of %@", @(DESIRED_RADIUS), enteredRegion.identifier);
+            if(![self.enteredSubRegions[enteredRegion.identifier] isEqual:@YES]) {
+                [self.enteredSubRegions setValue:@YES forKey:enteredRegion.identifier];
+                if (self.hasListeners) {
+                  [self sendEventWithName:@"onEnter" body:enteredRegion.identifier];
+                } else {
+                  GeofenceEvent *event = [[GeofenceEvent alloc] initWithId:enteredRegion.identifier forEvent:@"onEnter" ];
+                  [self.queuedEvents addObject:event];
+                }
+            }
             break;
         } else if ([enteredRegion containsCoordinate:circularRegion.center]) {
             NSLog(@"You are within the region, but not yet %@m from %@", @(DESIRED_RADIUS), enteredRegion.identifier);
+            if([self.enteredSubRegions[enteredRegion.identifier] isEqual:@YES]) {
+                [self.enteredSubRegions setValue:@NO forKey:enteredRegion.identifier];
+                NSLog(@"didExit : %@", enteredRegion.identifier);
+                if (self.hasListeners) {
+                  [self sendEventWithName:@"onExit" body:enteredRegion.identifier];
+                } else {
+                  GeofenceEvent *event = [[GeofenceEvent alloc] initWithId:enteredRegion.identifier forEvent:@"onExit" ];
+                  [self.queuedEvents addObject:event];
+                }
+            }
         }
     }
 }
+
+
 
 - (void)startObserving {
     self.hasListeners = YES;
