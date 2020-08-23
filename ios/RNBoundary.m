@@ -149,7 +149,7 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
     for (CLCircularRegion *enteredRegion in _locationManager.monitoredRegions.allObjects) {
         if ([circularRegion containsCoordinate:enteredRegion.center]) {
             [_locationManager stopUpdatingLocation];
-            NSLog(@"You are within %@ of %@, @(DESIRED_RADIUS)", enteredRegion.identifier);
+            NSLog(@"You are within %@ of %@", @(DESIRED_RADIUS), enteredRegion.identifier);
             break;
         } else if ([enteredRegion containsCoordinate:circularRegion.center]) {
             NSLog(@"You are within the region, but not yet %@m from %@", @(DESIRED_RADIUS), enteredRegion.identifier);
