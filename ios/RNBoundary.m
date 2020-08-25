@@ -51,11 +51,16 @@ RCT_EXPORT_METHOD(add:(NSDictionary*)boundary addWithResolver:(RCTPromiseResolve
     if ([CLLocationManager authorizationStatus] == kCLAuthorizationStatusAuthorizedAlways) {
         NSString *id = boundary[@"id"];
         CLLocationCoordinate2D center = CLLocationCoordinate2DMake([boundary[@"lat"] doubleValue], [boundary[@"lng"] doubleValue]);
-        CLRegion *boundaryRegion = [[CLCircularRegion alloc]initWithCenter:center
+        CLCircularRegion *boundaryRegion = [[CLCircularRegion alloc]initWithCenter:center
                                                                     radius:[boundary[@"radius"] doubleValue]
                                                                 identifier:id];
-        [self.enteredSubRegions setValue:@NO forKey:id];
+ 
         [self.locationManager startMonitoringForRegion:boundaryRegion];
+        if([boundaryRegion containsCoordinate:self.locationManager.location.coordinate]) {
+            self.locationManager.activityType = CLActivityTypeFitness;
+            self.locationManager.distanceFilter = 5;
+            [self.locationManager startUpdatingLocation];
+        }
 
         resolve(id);
     } else {
@@ -68,6 +73,9 @@ RCT_EXPORT_METHOD(remove:(NSString *)boundaryId removeWithResolver:(RCTPromiseRe
     if ([self removeBoundary:boundaryId]) {
         resolve(boundaryId);
         [self.enteredSubRegions removeObjectForKey:boundaryId];
+        if(![[self.enteredSubRegions allValues] containsObject:@YES]) {
+            [self.locationManager stopUpdatingLocation];
+        }
     } else {
         reject(@"@no_boundary", @"No boundary with the provided id was found", [NSError errorWithDomain:@"boundary" code:200 userInfo:@{@"Error reason": @"Invalid boundary ID"}]);
     }
@@ -78,6 +86,8 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
     @try {
         [self removeAllBoundaries];
         [self.enteredSubRegions removeAllObjects];
+        [self.locationManager stopUpdatingLocation];
+    
     }
     @catch (NSError *ex) {
         reject(@"failed_remove_all", @"Failed to remove all boundaries", ex);
@@ -128,9 +138,12 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
 
 - (void)locationManager:(CLLocationManager *)manager didExitRegion:(CLRegion *)region
 {
-    [_locationManager stopUpdatingLocation];
+    if(![[self.enteredSubRegions allValues] containsObject:@YES]) {
+        [_locationManager stopUpdatingLocation];
+    }
+    
     if([self.enteredSubRegions[region.identifier] isEqual:@YES]) {
-                [self.enteredSubRegions setValue:@NO forKey:region.identifier];
+        [self.enteredSubRegions removeObjectForKey:region.identifier];
                 NSLog(@"didExit : %@", region.identifier);
                 if (self.hasListeners) {
                   [self sendEventWithName:@"onExit" body:region.identifier];
@@ -143,7 +156,7 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
 
 -(void)locationManager:(CLLocationManager *)manager didUpdateLocations:(NSArray<CLLocation *> *)locations {
     CLLocation *firstLocation = [locations firstObject];
-    CGFloat const DESIRED_RADIUS = 20.0;
+    CGFloat const DESIRED_RADIUS = 50.0;
 
     CLCircularRegion *circularRegion = [[CLCircularRegion alloc] initWithCenter:firstLocation.coordinate radius:DESIRED_RADIUS identifier:@"radiusCheck"];
 
@@ -163,7 +176,7 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
         } else if ([enteredRegion containsCoordinate:circularRegion.center]) {
             NSLog(@"You are within the region, but not yet %@m from %@", @(DESIRED_RADIUS), enteredRegion.identifier);
             if([self.enteredSubRegions[enteredRegion.identifier] isEqual:@YES]) {
-                [self.enteredSubRegions setValue:@NO forKey:enteredRegion.identifier];
+                [self.enteredSubRegions removeObjectForKey:enteredRegion.identifier];
                 NSLog(@"didExit : %@", enteredRegion.identifier);
                 if (self.hasListeners) {
                   [self sendEventWithName:@"onExit" body:enteredRegion.identifier];
