@@ -116,7 +116,7 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
 
 - (NSArray<NSString *> *)supportedEvents
 {
-    return @[@"onEnter", @"onExit"];
+    return @[@"onEnter", @"onExit", @"onLog"];
 }
 
 - (void)locationManager:(CLLocationManager *)manager didEnterRegion:(CLRegion *)region
@@ -157,12 +157,15 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
 -(void)locationManager:(CLLocationManager *)manager didUpdateLocations:(NSArray<CLLocation *> *)locations {
     CLLocation *firstLocation = [locations firstObject];
     CGFloat const DESIRED_RADIUS = 50.0;
+    [self sendEventWithName:@"onLog" body:@"Did Update Locations"];
 
     CLCircularRegion *circularRegion = [[CLCircularRegion alloc] initWithCenter:firstLocation.coordinate radius:DESIRED_RADIUS identifier:@"radiusCheck"];
 
     for (CLCircularRegion *enteredRegion in _locationManager.monitoredRegions.allObjects) {
         if ([circularRegion containsCoordinate:enteredRegion.center]) {
-            NSLog(@"You are within %@ of %@", @(DESIRED_RADIUS), enteredRegion.identifier);
+             NSString *log = [NSString stringWithFormat:@"You are within %@ of %@", @(DESIRED_RADIUS), enteredRegion.identifier];
+            NSLog(log);
+            [self sendEventWithName:@"onLog" body:log];
             if(![self.enteredSubRegions[enteredRegion.identifier] isEqual:@YES]) {
                 [self.enteredSubRegions setValue:@YES forKey:enteredRegion.identifier];
                 if (self.hasListeners) {
@@ -174,7 +177,10 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
             }
             break;
         } else if ([enteredRegion containsCoordinate:circularRegion.center]) {
-            NSLog(@"You are within the region, but not yet %@m from %@", @(DESIRED_RADIUS), enteredRegion.identifier);
+            NSString *log = [NSString stringWithFormat:@"You are within the region, but not yet %@m from %@", @(DESIRED_RADIUS), enteredRegion.identifier];
+            NSLog(log);
+            [self sendEventWithName:@"onLog" body:log];
+
             if([self.enteredSubRegions[enteredRegion.identifier] isEqual:@YES]) {
                 [self.enteredSubRegions removeObjectForKey:enteredRegion.identifier];
                 NSLog(@"didExit : %@", enteredRegion.identifier);
