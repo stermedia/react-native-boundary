@@ -170,6 +170,8 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
                 [self.enteredSubRegions setValue:@YES forKey:enteredRegion.identifier];
                 if (self.hasListeners) {
                   [self sendEventWithName:@"onEnter" body:enteredRegion.identifier];
+                    [self sendEventWithName:@"onLog" body:[NSString stringWithFormat:@"ENTERED %@", enteredRegion.identifier]];
+
                 } else {
                   GeofenceEvent *event = [[GeofenceEvent alloc] initWithId:enteredRegion.identifier forEvent:@"onEnter" ];
                   [self.queuedEvents addObject:event];
@@ -186,6 +188,8 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
                 NSLog(@"didExit : %@", enteredRegion.identifier);
                 if (self.hasListeners) {
                   [self sendEventWithName:@"onExit" body:enteredRegion.identifier];
+                    [self sendEventWithName:@"onLog" body:[NSString stringWithFormat:@"EXITED %@", enteredRegion.identifier]];
+
                 } else {
                   GeofenceEvent *event = [[GeofenceEvent alloc] initWithId:enteredRegion.identifier forEvent:@"onExit" ];
                   [self.queuedEvents addObject:event];
