@@ -156,7 +156,7 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
 
 -(void)locationManager:(CLLocationManager *)manager didUpdateLocations:(NSArray<CLLocation *> *)locations {
     CLLocation *firstLocation = [locations firstObject];
-    CGFloat const DESIRED_RADIUS = 50.0;
+    CGFloat const DESIRED_RADIUS = 100.0;
     [self sendEventWithName:@"onLog" body:@"Did Update Locations"];
 
     CLCircularRegion *circularRegion = [[CLCircularRegion alloc] initWithCenter:firstLocation.coordinate radius:DESIRED_RADIUS identifier:@"radiusCheck"];
