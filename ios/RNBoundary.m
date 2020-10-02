@@ -125,7 +125,7 @@ RCT_EXPORT_METHOD(removeAll:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromise
         if ([enteredRegion.identifier isEqualToString:region.identifier]) {
 
             self.locationManager.activityType = CLActivityTypeFitness;
-            self.locationManager.distanceFilter = 5;
+            self.locationManager.distanceFilter = 50;
             [self.locationManager startUpdatingLocation];
 
             break;
